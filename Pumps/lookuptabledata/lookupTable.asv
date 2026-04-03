@@ -1,0 +1,90 @@
+%% generate_pump_lookup_tables.m
+% Loops over all Excel files in the script's current folder,
+% builds 2D lookup table grids for:
+%   1. Flow + Head -> Speed
+%   2. Head + Speed -> Power
+% Saves each as a .mat file ready for Simulink 2D Lookup Table blocks.
+
+%% Setup
+scriptDir = fileparts(mfilename('fullpath'));
+excelFiles = dir(fullfile(scriptDir, '*.csv'));
+
+if isempty(excelFiles)
+    error('No .xlsx files found in %s', scriptDir);
+end
+
+% Grid resolution
+nQ = 50;
+nH = 50;
+nS = 50;
+
+%% Loop over each file
+for i = 1:length(excelFiles)
+    filePath = fullfile(excelFiles(i).folder, excelFiles(i).name);
+    [~, fileName, ~] = fileparts(excelFiles(i).name);
+    fprintf('Processing: %s\n', excelFiles(i).name);
+
+    %% Load data
+    data = readmatrix(filePath);
+
+    Q     = data(:,1);  % Flow (gpm)
+    H     = data(:,2);  % Head (ft)
+    speed = data(:,3);  % Speed
+    power = data(:,6);  % Power
+
+    %% --- Lookup Table 1: Flow + Head -> Speed ---
+    F_speed = scatteredInterpolant(Q, H, speed, 'linear', 'nearest');
+
+    Q_grid = linspace(min(Q), max(Q), nQ);
+    H_grid = linspace(min(H), max(H), nH);
+    [QQ, HH] = meshgrid(Q_grid, H_grid);
+    speed_grid = F_speed(QQ, HH);
+
+    %% --- Lookup Table 2: Head + Speed -> Power ---
+    F_power = scatteredInterpolant(H, speed, power, 'linear', 'nearest');
+
+    H_grid_pwr = linspace(min(H), max(H), nH);
+    S_grid_pwr = linspace(min(speed), max(speed), nS);
+    [HH2, SS2] = meshgrid(H_grid_pwr, S_grid_pwr);
+    power_grid = F_power(HH2, SS2);
+
+    %% Save both tables to .structure object
+%% Pack into struct and append to master file
+pump.(fileName).Q_grid     = Q_grid;
+pump.(fileName).H_grid     = H_grid;
+pump.(fileName).speed_grid = speed_grid;
+
+pump.(fileName).H_grid_pwr = H_grid_pwr;
+pump.(fileName).S_grid_pwr = S_grid_pwr;
+pump.(fileName).power_grid = power_grid;%% --- Lookup Table 1: Flow + Head -> Speed ---
+[QQ, HH] = meshgrid(Q_grid, H_grid);
+F_speed = scatteredInterpolant(QQ(:), HH(:), speed(:), 'linear', 'nearest');
+speed_grid = F_speed(QQ, HH);
+
+%% --- Lookup Table 2: Head + Speed -> Power ---
+F_power = scatteredInterpolant(H, speed, power, 'linear', 'nearest');
+H_grid_pwr = linspace(min(H), max(H), nH);
+S_grid_pwr = linspace(min(speed), max(speed), nS);
+[HH2, SS2] = meshgrid(H_grid_pwr, S_grid_pwr);
+power_grid = F_power(HH2, SS2);
+
+%% --- Lookup Table 3: Head + Speed -> Flow ---
+F_flow = scatteredInterpolant(H, speed, Q, 'linear', 'nearest');
+flow_grid = F_flow(HH2, SS2);  % same H+S grid as power table
+
+%% Save all three
+pump.(fileName).Q_grid      = Q_grid;
+pump.(fileName).H_grid      = H_grid;
+pump.(fileName).speed_grid  = speed_grid;
+
+pump.(fileName).H_grid_pwr  = H_grid_pwr;
+pump.(fileName).S_grid_pwr  = S_grid_pwr;
+pump.(fileName).power_grid  = power_grid;
+pump.(fileName).flow_grid   = flow_grid;  % new
+end
+%% Save master struct
+savePath = fullfile(scriptDir, 'all_pumps.mat');
+save(savePath, 'pump');
+fprintf('Master file saved: %s\n', savePath);
+
+fprintf('\nDone. %d lookup table(s) generated.\n', length(excelFiles));
