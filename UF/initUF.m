@@ -17,14 +17,14 @@ modules_RUF = 30; %modules/skid
 z = 12; %skid height, ft
 g = 32.2 * 60^2; %gravity acceleration, ft/min2
 
-
- if ~exist("GAM","var")
-    disp("UF GAM not found. Loading...")
-    S = load("ufFoulingPred_GAM.mat");
-    GAM = S.gamMdl;
-    GAM = assignin('base','GAM', GAM);
-    disp("UF Loaded.")
- end
+ % 
+ % if ~exist("GAM","var")
+ %    disp("UF GAM not found. Loading...")
+ %    S = load("ufFoulingPred_GAM.mat");
+ %    GAM = S.gamMdl;
+ %    GAM = assignin('base','GAM', GAM);
+ %    disp("UF Loaded.")
+ % end
 
 
 %Define Initial Condition maximums to be used in a uniform distribution

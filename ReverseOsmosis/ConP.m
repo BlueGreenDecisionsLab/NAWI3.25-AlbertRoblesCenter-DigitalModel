@@ -9,6 +9,9 @@ function [cm] = ConP(cb, T, dh, L, u, Jw)
 %convert Jw to cm/s from L/m2/min
 Jw = Jw * 0.0016667;
 
+%account for steps over into negative velocity
+u = max(u,0);
+
 %Kinematic Visc Table. [oC, m2/s]
 kin_visc_table = [0 1.792e-6;
     10 1.308e-6;
@@ -37,6 +40,11 @@ Sh = 1.85*(Re * Sc * dh / L)^.33; %Sherwood Number for rectangular channel with 
 
 kf = Sh * D / dh; %diffusion rate constant for NaCl (cm/s)
 
-cm = cb * exp(Jw / kf); %membrane concentration
+if kf > 0 && Jw>0
+    cm = cb * exp(Jw / kf); %membrane concentration
+    
+else
+    cm = cb;
+end
 
 end
